@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgriTrial Data Capture</title>
+  <style>
+    #page {
+      max-width: 900px;
+      margin: 20px auto 40px auto;
+      text-align: center;
+    }
+    h1, h2, h3 {
+      color: #4f9d69;
+    }
+    a {
+      color: #2e5e3a;
+    }
+    .section {
+      border: 1px solid #4f9d69;
+      border-radius: 3px;
+      padding: 10px 20px 20px 20px;
+      margin-top: 20px;
+    }
+    table {
+      margin: auto;
+      border-collapse: collapse;
+    }
+    .form td {
+      padding: 5px 8px;
+      text-align: left;
+    }
+    .form td.label {
+      text-align: right;
+    }
+    .form input, .form select {
+      width: 160px;
+      box-sizing: border-box;
+    }
+    .grid th, .grid td {
+      border: 1px solid #4f9d69;
+      padding: 4px 6px;
+    }
+    .grid th {
+      width: 100px;
+      background-color: #eaf4ee;
+    }
+    .grid td {
+      white-space: nowrap;
+    }
+    .grid input {
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      text-align: center;
+    }
+    .scroll {
+      overflow-x: auto;
+    }
+    textarea {
+      width: 100%;
+      max-width: 400px;
+      box-sizing: border-box;
+    }
+    input, select, textarea {
+      border: 1px solid #4f9d69;
+    }
+  </style>
+</head>
+<body onload="startPage()">
+  <div id="page">
+    <h1>AgriTrial Version 1</h1>
+
+    <p>
+      <a href="central_dashboard.html">Central Dashboard</a> |
+      <a href="data_capture.html">Data Capture</a> |
+      <a href="#">Stakeholder Dashboards</a> |
+      <a href="login.html">Log out</a>
+    </p>
+
+    <h2>Data Capture</h2>
+    <p>Farmers only. Fill in the sections below and submit, or skip to go straight to the dashboard. Fields marked * are required.</p>
+
+    <div class="section">
+      <h3>Trial details</h3>
+      <table class="form">
+        <tr>
+          <td class="label"><label for="site">Site *</label></td>
+          <td>
+            <select id="site" class="required" onchange="setCrop()">
+              <option value="">Choose a site</option>
+              <option value="Site A">Site A, Lettuce</option>
+              <option value="Site B">Site B, Basil</option>
+              <option value="Site C">Site C, Spinach</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td class="label"><label for="date">Date *</label></td>
+          <td><input type="date" id="date" class="required" oninput="checkFields()"></td>
+        </tr>
+        <tr>
+          <td class = "label"><label for = "variety">Variety *</label></td>
+          <td ><input type = "text" id = "variety" class = "required" oninput ="checkFields()"></td>
+        </tr>
+        <tr>
+          <td class="label"><label for="crop">Crop *</label></td>
+          <td>
+            <select id="crop" class="required" disabled>
+              <option value="">Set by site</option>
+              <option>Lettuce</option>
+              <option>Basil</option>
+              <option>Spinach</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td class="label"><label for="group">Treatment group *</label></td>
+          <td>
+            <select id="group" class="required" onchange="checkFields()">
+              <option value="">Choose a group</option>
+              <option>Control</option>
+              <option>Treatment A</option>
+              <option>Treatment B</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td class="label"><label for="observer">Observer *</label></td>
+          <td><input type="text" id="observer" class="required" oninput="checkFields()"></td>
+        </tr>
+        <tr>
+          <td class="label"><label for="week">Trial week *</label></td>
+          <td><input type="number" id="week" class="required" min="1" oninput="checkFields()"></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>Plant metrics</h3>
+      <p>One row per plot. Plot 1 is required, add more plots if you have them.</p>
+      <div class="scroll">
+        <table id="grid" class="grid"></table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Environmental readings</h3>
+      <table class="form">
+        <tr>
+          <td class="label"><label for="ph">pH *</label></td>
+          <td><input type="number" id="ph" class="required" min="0" max="14" step="any" oninput="checkFields()"></td>
+        </tr>
+        <tr>
+          <td class="label"><label for="temperature">Temperature (°C) *</label></td>
+          <td><input type="number" id="temperature" class="required" step="any" oninput="checkFields()"></td>
+        </tr>
+        <tr>
+          <td class="label"><label for="humidity">Humidity (%) *</label></td>
+          <td><input type="number" id="humidity" class="required" min="0" max="100" step="any" oninput="checkFields()"></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>Notes</h3>
+      <p>Optional. Mention anything unusual, such as heavy rain, that may have affected the results.</p>
+      <textarea id="notes" rows="3"></textarea>
+    </div>
+
+    <p>
+      <input type="checkbox" id="skipToggle" onchange="checkFields()">
+      <label for="skipToggle">Skip data entry and go straight to the dashboard</label>
+    </p>
+    <button id="submitButton" onclick="submitForm()" disabled>Save and submit</button>
+  </div>
+
+  <script>
+    var columns = ["Height (cm)", "Leaf count", "Fresh weight (g)", "Dry weight (g)", "Root length (cm)", "Yield (kg/plot)", "Disease(%)"];
+    var plotCount = 10;
+    var siteCrops = {
+      "Site A": "Lettuce",
+      "Site B": "Basil",
+      "Site C": "Spinach"
+    };
+
+    function startPage() {
+      buildGrid();
+      checkFields();
+    }
+
+    function buildGrid() {
+      var html = "<tr><th>Plot</th>";
+      for (var i = 0; i < columns.length; i++) {
+        html = html + "<th>" + columns[i] + "</th>";
+      }
+      html = html + "</tr>";
+      for (var row = 1; row <= plotCount; row++) {
+        var label = "Plot " + row;
+        var cellClass = "";
+        if (row == 1) {
+          label = "Plot 1 *";
+          cellClass = "required";
+        }
+        html = html + "<tr><td>" + label + "</td>";
+        for (var j = 0; j < columns.length; j++) {
+          html = html + '<td><input type="number" min="0" step="any" class="' + cellClass + '" aria-label="Plot ' + row + " " + columns[j] + '" oninput="checkFields()"></td>';
+        }
+        html = html + "</tr>";
+      }
+      document.getElementById("grid").innerHTML = html;
+    }
+
+    function checkFields() {
+      var required = document.getElementsByClassName("required");
+      var allFilled = true;
+      for (var i = 0; i < required.length; i++) {
+        if (required[i].value == "") {
+          allFilled = false;
+        }
+      }
+      var skip = document.getElementById("skipToggle").checked;
+      var button = document.getElementById("submitButton");
+
+      var sections = document.getElementsByClassName("section");
+      for (var s = 0; s < sections.length; s++) {
+        sections[s].style.opacity = skip ? "0.4" : "1";
+      }
+      if (skip) {
+        button.disabled = false;
+        button.innerHTML = "Go to dashboard";
+      } else {
+        button.innerHTML = "Save and submit";
+        if (allFilled) {
+          button.disabled = false;
+        } else {
+          button.disabled = true;
+        }
+      }
+    }
+
+    function setCrop() {
+      var site = document.getElementById("site").value;
+      document.getElementById("crop").value = siteCrops[site] || "";
+      checkFields();
+    }
+
+    async function submitForm() {
+      var skip = document.getElementById("skipToggle").checked;
+      
+      if (skip ) {
+        window.location = "central_dashboard.html";
+        return;
+      }
+      
+      var site = document.getElementById("site").value;
+      var crop = document.getElementById("crop").value;
+      var date = document.getElementById("date").value;
+      var variety = document.getElementById("variety").value;
+      var treatment = document.getElementById("group").value;
+      var observer = document.getElementById("observer").value;
+      var week = document.getElementById("week").value;
+      var ph = document.getElementById("ph").value;
+      var temperature = document.getElementById("temperature").value;
+      var humidity = document.getElementById("humidity").value;
+      var notes = document.getElementById("notes").value;
+
+      var plots = [];
+      var gridRows = document.getElementById("grid").rows;
+      for (var r = 1; r < gridRows.length; r++) {
+        var inputs = gridRows[r].getElementsByTagName("input");
+        var hasValue = false;
+      
+        for (var c = 0; c < inputs.length; c++) {
+          if (inputs[c].value != "") {hasValue = true;
+          }
+        }
+        if (!hasValue) {continue;}
+        plots.push({
+          plot: r,
+          height: inputs[0].value || null,
+          leaf_count: inputs[1].value || null,
+          fresh_weight: inputs[2].value || null,
+          dry_weight: inputs[3].value || null,
+          root_length: inputs[4].value || null,
+          yield_kg: inputs[5].value || null,
+          disease_pct: inputs[6].value || null});
+      } 
+      var payload = {
+        site,crop,date,variety,treatment,observer,week,ph,temperature,humidity,notes,plots
+      };
+      try {
+        const response = await fetch("http://localhost:5000/add_plant_data", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        
+        if (response.ok){
+          alert("Data submitted successfully!");
+          window.location.href = "central_dashboard.html";
+        } else {
+          alert(result.error || "Data submission failed");
+        }
+      } catch (error) {
+        console.error("Error during data submission:", error);
+        alert("An error occurred while submitting the data.");
+      }
+    }
+  </script>
+</body>
+</html>

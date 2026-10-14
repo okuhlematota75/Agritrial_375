@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AgriTrial Central Dashboard</title>
+  <style>
+    #page {
+      max-width: 900px;
+      margin: 20px auto 40px auto;
+      text-align: center;
+    }
+    h1, h2, h3 {
+      color: #4f9d69;
+    }
+    a {
+      color: #2e5e3a;
+    }
+    .section {
+      border: 1px solid #4f9d69;
+      border-radius: 3px;
+      padding: 10px 20px 20px 20px;
+      margin-top: 20px;
+    }
+    table {
+      margin: auto;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #4f9d69;
+      padding: 6px 14px;
+    }
+    th {
+      background-color: #eaf4ee;
+    }
+    select {
+      border: 1px solid #4f9d69;
+    }
+    canvas {
+      max-width: 100%;
+    }
+  </style>
+</head>
+<body onload="startPage()">
+  <div id="page">
+    <h1>AgriTrial Version 1</h1>
+
+    <p>
+      <a href="data_capture.html">Back to Data Capture</a> |
+      <a href="login.html">Log out</a>
+    </p>
+
+    <h2>Central Dashboard</h2>
+    <p>Viewing as: Farmer. All numbers on this page are sample data.</p>
+
+    <div class="section">
+      <h3>Site and crop overview</h3>
+      <table>
+        <tr>
+          <th>Site</th>
+          <th>Crop</th>
+          <th>Treatment groups</th>
+          <th>Latest trial week</th>
+          <th>Records captured</th>
+        </tr>
+        <tr>
+          <td>Site A</td>
+          <td>Lettuce</td>
+          <td>3</td>
+          <td>Week 8</td>
+          <td>120</td>
+        </tr>
+        <tr>
+          <td>Site B</td>
+          <td>Basil</td>
+          <td>3</td>
+          <td>Week 6</td>
+          <td>90</td>
+        </tr>
+        <tr>
+          <td>Site C</td>
+          <td>Spinach</td>
+          <td>2</td>
+          <td>Week 8</td>
+          <td>80</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>Crop and plant metrics</h3>
+      <p>
+        <label for="siteChoice">Showing:</label>
+        <select id="siteChoice" onchange="drawMainChart()">
+          <option value="Site A">Site A, Lettuce</option>
+          <option value="Site B">Site B, Basil</option>
+          <option value="Site C">Site C, Spinach</option>
+        </select>
+      </p>
+      <p>
+        <label for="metricChoice">Metric</label>
+        <select id="metricChoice" onchange="drawMainChart()">
+          <option>Height (cm)</option>
+          <option>Leaf count</option>
+          <option>Fresh weight (g)</option>
+          <option>Root length (cm)</option>
+          <option>Yield (kg/plot)</option>
+        </select>
+      </p>
+      <p>
+        <label for="chartChoice">Chart type</label>
+        <select id="chartChoice" onchange="drawMainChart()">
+          <option>Bar</option>
+          <option>Line</option>
+          <option>Pie</option>
+        </select>
+      </p>
+      <canvas id="mainChart" width="600" height="320"></canvas>
+      <p id="farmerNote">Farmer note (Week 6): Heavy rain flooded the lower plots for two days.</p>
+    </div>
+
+    <div class="section">
+      <h3>Confidence interval comparison</h3>
+      <p>
+        <label for="ciSiteChoice">Site</label>
+        <select id="ciSiteChoice" onchange="drawBellCurves(); showCiTable(); showCiResult()">
+          <option value="Site A">Site A, Lettuce</option>
+          <option value="Site B">Site B, Basil</option>
+          <option value="Site C">Site C, Spinach</option>
+        </select>
+      </p>
+      <p>
+        <label for="ciMetricChoice">Metric</label>
+        <select id="ciMetricChoice" onchange="drawBellCurves(); showCiTable(); showCiResult()">
+          <option>Height (cm)</option>
+          <option>Leaf count</option>
+          <option>Fresh weight (g)</option>
+          <option>Root length (cm)</option>
+          <option>Yield (kg/plot)</option>
+        </select>
+      </p>
+      <p id="ciSubtitle">Lettuce at Site A, Week 8, 10 plants per group</p>
+      <canvas id="ciChart" width="600" height="300"></canvas>
+      <table>
+        <thead>
+          <tr>
+            <th>Group</th>
+            <th id="ciMeanHeader">Mean (cm)</th>
+            <th id="ciIntervalHeader">95% confidence interval (cm)</th>
+          </tr>
+        </thead>
+        <tbody id="ciRows"></tbody>
+      </table>
+      <p id="ciResult"></p>
+    </div>
+  </div>
+
+  <script>
+    var weeks = ["Week 2", "Week 4", "Week 6", "Week 8"];
+    var groupNames = ["Control", "Treatment A", "Treatment B"];
+    var groupColors = ["#9e9e9e", "#4f9d69", "#2e5e3a"];
+
+    var sites = {
+      "Site A": {
+        crop: "Lettuce",
+        weeks: ["Week 2", "Week 4", "Week 6", "Week 8"],
+        groupNames: ["Control", "Treatment A", "Treatment B"],
+        note: "Farmer note (Week 6): Heavy rain flooded the lower plots for two days.",
+        metrics: {
+          "Height (cm)": [
+            [3.1, 6.2, 9.4, 12.4],
+            [3.3, 7.0, 11.5, 16.0],
+            [3.2, 6.8, 10.6, 14.2]
+          ],
+          "Leaf count": [
+            [4, 7, 10, 13],
+            [4, 8, 12, 17],
+            [4, 8, 11, 15]
+          ],
+          "Fresh weight (g)": [
+            [8, 24, 52, 88],
+            [9, 29, 66, 118],
+            [9, 27, 60, 102]
+          ],
+          "Root length (cm)": [
+            [3.0, 6.5, 10.0, 13.5],
+            [3.2, 7.5, 12.5, 18.0],
+            [3.1, 7.0, 11.0, 15.5]
+          ],
+          "Yield (kg/plot)": [
+            [0.3, 0.8, 1.7, 2.6],
+            [0.3, 1.0, 2.3, 3.5],
+            [0.3, 0.9, 2.0, 3.1]
+          ]
+        },
+        ci: {
+          "Height (cm)": [{ mean: 12.4, sd: 1.6, n: 10 }, { mean: 16.0, sd: 1.8, n: 10 }],
+          "Leaf count": [{ mean: 13, sd: 1.5, n: 10 }, { mean: 17, sd: 1.8, n: 10 }],
+          "Fresh weight (g)": [{ mean: 88, sd: 9.5, n: 10 }, { mean: 118, sd: 12.0, n: 10 }],
+          "Root length (cm)": [{ mean: 13.5, sd: 1.5, n: 10 }, { mean: 18.0, sd: 1.9, n: 10 }],
+          "Yield (kg/plot)": [{ mean: 2.6, sd: 0.3, n: 10 }, { mean: 3.5, sd: 0.4, n: 10 }]
+        }
+      },
+      "Site B": {
+        crop: "Basil",
+        weeks: ["Week 2", "Week 4", "Week 6"],
+        groupNames: ["Control", "Treatment A", "Treatment B"],
+        note: "Farmer note (Week 4): Aphids found on a few plants and treated the same day.",
+        metrics: {
+          "Height (cm)": [
+            [4.0, 9.5, 17.0],
+            [4.3, 11.0, 21.5],
+            [4.2, 10.2, 19.0]
+          ],
+          "Leaf count": [
+            [6, 14, 26],
+            [6, 16, 32],
+            [6, 15, 29]
+          ],
+          "Fresh weight (g)": [
+            [6, 20, 45],
+            [7, 26, 62],
+            [6, 23, 54]
+          ],
+          "Root length (cm)": [
+            [5.0, 8.5, 13.0],
+            [5.2, 9.5, 14.6],
+            [5.1, 9.0, 13.8]
+          ],
+          "Yield (kg/plot)": [
+            [0.4, 1.3, 2.4],
+            [0.4, 1.7, 3.3],
+            [0.4, 1.5, 2.9]
+          ]
+        },
+        ci: {
+          "Height (cm)": [{ mean: 17.0, sd: 2.1, n: 10 }, { mean: 21.5, sd: 2.6, n: 10 }],
+          "Leaf count": [{ mean: 26, sd: 3.4, n: 10 }, { mean: 32, sd: 3.8, n: 10 }],
+          "Fresh weight (g)": [{ mean: 45, sd: 6.5, n: 10 }, { mean: 62, sd: 8.0, n: 10 }],
+          "Root length (cm)": [{ mean: 13.0, sd: 2.0, n: 10 }, { mean: 14.6, sd: 2.2, n: 10 }],
+          "Yield (kg/plot)": [{ mean: 2.4, sd: 0.35, n: 10 }, { mean: 3.3, sd: 0.4, n: 10 }]
+        }
+      },
+      "Site C": {
+        crop: "Spinach",
+        weeks: ["Week 2", "Week 4", "Week 6", "Week 8"],
+        groupNames: ["Control", "Treatment A"],
+        note: "Farmer note (Week 6): Two cold nights, so the beds were covered with netting.",
+        metrics: {
+          "Height (cm)": [
+            [3.5, 8.0, 14.0, 19.5],
+            [3.7, 9.0, 16.5, 23.0]
+          ],
+          "Leaf count": [
+            [5, 9, 14, 19],
+            [5, 10, 16, 23]
+          ],
+          "Fresh weight (g)": [
+            [4, 14, 32, 55],
+            [4, 17, 41, 72]
+          ],
+          "Root length (cm)": [
+            [4.0, 8.0, 12.0, 15.5],
+            [4.3, 9.0, 14.0, 18.5]
+          ],
+          "Yield (kg/plot)": [
+            [0.2, 0.8, 1.9, 3.0],
+            [0.2, 1.0, 2.3, 3.5]
+          ]
+        },
+        ci: {
+          "Height (cm)": [{ mean: 19.5, sd: 2.4, n: 10 }, { mean: 23.0, sd: 2.7, n: 10 }],
+          "Leaf count": [{ mean: 19, sd: 2.2, n: 10 }, { mean: 23, sd: 2.5, n: 10 }],
+          "Fresh weight (g)": [{ mean: 55, sd: 6.5, n: 10 }, { mean: 72, sd: 8.0, n: 10 }],
+          "Root length (cm)": [{ mean: 15.5, sd: 1.9, n: 10 }, { mean: 18.5, sd: 2.1, n: 10 }],
+          "Yield (kg/plot)": [{ mean: 3.0, sd: 0.4, n: 10 }, { mean: 3.5, sd: 0.45, n: 10 }]
+        }
+      }
+    };
+
+    var ciGroups = [];
+    var ciNames = [];
+    var tValue = 2.262;
+
+    var chartLeft = 60;
+    var chartRight = 570;
+    var chartTop = 75;
+    var chartBottom = 270;
+
+    var ciLeft = 40;
+    var ciRight = 560;
+    var ciTop = 80;
+    var ciBottom = 240;
+    var ciMin = 9;
+    var ciMax = 19;
+    var ciStep = 2;
+
+    function startPage() {
+      drawMainChart();
+      drawBellCurves();
+      showCiTable();
+      showCiResult();
+    }
+
+    function drawMainChart() {
+      var metric = document.getElementById("metricChoice").value;
+      var type = document.getElementById("chartChoice").value;
+      var site = sites[document.getElementById("siteChoice").value];
+      weeks = site.weeks;
+      groupNames = site.groupNames;
+      document.getElementById("farmerNote").innerHTML = site.note;
+      var series = site.metrics[metric];
+      var lastWeek = weeks[weeks.length - 1];
+      var ctx = document.getElementById("mainChart").getContext("2d");
+      ctx.clearRect(0, 0, 600, 320);
+      if (type == "Bar") {
+        drawTitleAndLegend(ctx, metric + " at " + lastWeek, groupNames, groupColors);
+        drawBars(ctx, series);
+      } else if (type == "Line") {
+        drawTitleAndLegend(ctx, metric + " by trial week", groupNames, groupColors);
+        drawLines(ctx, series);
+      } else {
+        drawTitleAndLegend(ctx, "Share of total, " + metric + " at " + lastWeek, groupNames, groupColors);
+        drawPie(ctx, series);
+      }
+    }
+
+    function drawTitleAndLegend(ctx, title, names, colors) {
+      ctx.fillStyle = "#000000";
+      ctx.font = "16px serif";
+      ctx.textAlign = "center";
+      ctx.fillText(title, 300, 22);
+      ctx.font = "13px serif";
+      ctx.textAlign = "left";
+      var totalWidth = 0;
+      for (var i = 0; i < names.length; i++) {
+        totalWidth = totalWidth + 18 + ctx.measureText(names[i]).width + 30;
+      }
+      var x = 300 - (totalWidth - 30) / 2;
+      for (var j = 0; j < names.length; j++) {
+        ctx.fillStyle = colors[j];
+        ctx.fillRect(x, 38, 12, 12);
+        ctx.fillStyle = "#000000";
+        ctx.fillText(names[j], x + 18, 49);
+        x = x + 18 + ctx.measureText(names[j]).width + 30;
+      }
+    }
+
+    function findMax(series) {
+      var max = 0;
+      for (var i = 0; i < series.length; i++) {
+        for (var j = 0; j < series[i].length; j++) {
+          if (series[i][j] > max) {
+            max = series[i][j];
+          }
+        }
+      }
+      return Math.ceil(max / 4) * 4;
+    }
+
+    function drawAxes(ctx, max) {
+      ctx.font = "12px serif";
+      ctx.textAlign = "right";
+      ctx.lineWidth = 1;
+      for (var i = 0; i <= 4; i++) {
+        var y = chartBottom - i * (chartBottom - chartTop) / 4;
+        ctx.strokeStyle = "#cccccc";
+        ctx.beginPath();
+        ctx.moveTo(chartLeft, y);
+        ctx.lineTo(chartRight, y);
+        ctx.stroke();
+        ctx.fillStyle = "#000000";
+        ctx.fillText(max * i / 4, chartLeft - 8, y + 4);
+      }
+    }
+
+    function drawBars(ctx, series) {
+      var max = findMax(series);
+      drawAxes(ctx, max);
+      var last = series[0].length - 1;
+      ctx.font = "13px serif";
+      ctx.textAlign = "center";
+      for (var i = 0; i < series.length; i++) {
+        var barHeight = series[i][last] / max * (chartBottom - chartTop);
+        var x = chartLeft + 40 + (3 - series.length) * 85 + i * 170;
+        ctx.fillStyle = groupColors[i];
+        ctx.fillRect(x, chartBottom - barHeight, 90, barHeight);
+        ctx.fillStyle = "#000000";
+        ctx.fillText(series[i][last], x + 45, chartBottom - barHeight - 6);
+        ctx.fillText(groupNames[i], x + 45, chartBottom + 20);
+      }
+    }
+
+    function drawLines(ctx, series) {
+      var max = findMax(series);
+      drawAxes(ctx, max);
+      var count = series[0].length;
+      var gap = (chartRight - chartLeft - 80) / (count - 1);
+      ctx.font = "13px serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#000000";
+      for (var j = 0; j < count; j++) {
+        ctx.fillText(weeks[j], chartLeft + 40 + j * gap, chartBottom + 20);
+      }
+      ctx.lineWidth = 3;
+      for (var i = 0; i < series.length; i++) {
+        ctx.strokeStyle = groupColors[i];
+        ctx.fillStyle = groupColors[i];
+        ctx.beginPath();
+        for (var k = 0; k < count; k++) {
+          var x = chartLeft + 40 + k * gap;
+          var y = chartBottom - series[i][k] / max * (chartBottom - chartTop);
+          if (k == 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+          ctx.fillRect(x - 4, y - 4, 8, 8);
+        }
+        ctx.stroke();
+      }
+    }
+
+    function drawPie(ctx, series) {
+      var last = series[0].length - 1;
+      var total = 0;
+      for (var i = 0; i < series.length; i++) {
+        total = total + series[i][last];
+      }
+      var startAngle = -Math.PI / 2;
+      ctx.font = "14px serif";
+      ctx.textAlign = "center";
+      for (var j = 0; j < series.length; j++) {
+        var slice = series[j][last] / total * 2 * Math.PI;
+        ctx.fillStyle = groupColors[j];
+        ctx.beginPath();
+        ctx.moveTo(300, 175);
+        ctx.arc(300, 175, 90, startAngle, startAngle + slice);
+        ctx.closePath();
+        ctx.fill();
+        var middle = startAngle + slice / 2;
+        ctx.fillStyle = "#000000";
+        ctx.fillText(Math.round(series[j][last] / total * 100) + "%", 300 + Math.cos(middle) * 118, 175 + Math.sin(middle) * 118 + 5);
+        startAngle = startAngle + slice;
+      }
+    }
+
+    function ciX(value) {
+      return ciLeft + (value - ciMin) / (ciMax - ciMin) * (ciRight - ciLeft);
+    }
+
+    function standardError(group) {
+      return group.sd / Math.sqrt(group.n);
+    }
+
+    function bellHeight(value, group) {
+      var se = standardError(group);
+      var z = (value - group.mean) / se;
+      return Math.exp(-z * z / 2) / (se * Math.sqrt(2 * Math.PI));
+    }
+
+    function loadCi() {
+      var key = document.getElementById("ciSiteChoice").value;
+      var metric = document.getElementById("ciMetricChoice").value;
+      var site = sites[key];
+      var raw = site.ci[metric];
+      var unit = "";
+      if (metric.indexOf("(") > -1) {
+        unit = " " + metric.substring(metric.indexOf("("));
+      }
+      ciNames = site.groupNames;
+      ciGroups = [];
+      var low = raw[0].mean;
+      var high = raw[0].mean;
+      for (var i = 0; i < raw.length; i++) {
+        var group = { mean: raw[i].mean, sd: raw[i].sd, n: raw[i].n };
+        var margin = tValue * standardError(group);
+        group.low = group.mean - margin;
+        group.high = group.mean + margin;
+        ciGroups.push(group);
+        low = Math.min(low, group.mean - 3.5 * standardError(group));
+        high = Math.max(high, group.mean + 3.5 * standardError(group));
+      }
+      var steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50];
+      var s = 0;
+      while ((high - low) / steps[s] > 6 && s < steps.length - 1) {
+        s = s + 1;
+      }
+      ciStep = steps[s];
+      ciMin = Math.floor(low / ciStep) * ciStep;
+      ciMax = Math.ceil(high / ciStep) * ciStep;
+      document.getElementById("ciSubtitle").innerHTML = site.crop + " at " + key + ", " + site.weeks[site.weeks.length - 1] + ", " + raw[0].n + " plants per group";
+      document.getElementById("ciMeanHeader").innerHTML = "Mean" + unit;
+      document.getElementById("ciIntervalHeader").innerHTML = "95% confidence interval" + unit;
+    }
+
+    function drawBellCurves() {
+      loadCi();
+      var metric = document.getElementById("ciMetricChoice").value;
+      var ctx = document.getElementById("ciChart").getContext("2d");
+      ctx.clearRect(0, 0, 600, 300);
+      drawTitleAndLegend(ctx, metric + " with 95% confidence intervals shaded", ciNames.slice(0, 2), groupColors.slice(0, 2));
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ciLeft, ciBottom);
+      ctx.lineTo(ciRight, ciBottom);
+      ctx.stroke();
+      ctx.fillStyle = "#000000";
+      ctx.font = "12px serif";
+      ctx.textAlign = "center";
+      for (var c = ciMin; c <= ciMax + ciStep / 2; c = c + ciStep) {
+        ctx.fillText(Math.round(c * 10) / 10, ciX(c), ciBottom + 18);
+      }
+      ctx.fillText(metric, 300, 285);
+      var highestPeak = 0;
+      for (var i = 0; i < ciGroups.length; i++) {
+        var peak = bellHeight(ciGroups[i].mean, ciGroups[i]);
+        if (peak > highestPeak) {
+          highestPeak = peak;
+        }
+      }
+      var scale = (ciBottom - ciTop) / highestPeak;
+      for (var j = 0; j < ciGroups.length; j++) {
+        var group = ciGroups[j];
+        var spread = 3.5 * standardError(group);
+        ctx.fillStyle = groupColors[j];
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.moveTo(ciX(group.low), ciBottom);
+        for (var a = group.low; a <= group.high; a = a + standardError(group) / 20) {
+          ctx.lineTo(ciX(a), ciBottom - bellHeight(a, group) * scale);
+        }
+        ctx.lineTo(ciX(group.high), ciBottom);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = groupColors[j];
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(ciX(group.mean - spread), ciBottom);
+        for (var b = group.mean - spread; b <= group.mean + spread; b = b + standardError(group) / 20) {
+          ctx.lineTo(ciX(b), ciBottom - bellHeight(b, group) * scale);
+        }
+        ctx.stroke();
+      }
+    }
+
+    function showCiTable() {
+      loadCi();
+      var rows = "";
+      for (var i = 0; i < ciGroups.length; i++) {
+        var group = ciGroups[i];
+        rows = rows + "<tr><td>" + ciNames[i] + "</td><td>" + group.mean.toFixed(1) + "</td><td>" + group.low.toFixed(2) + " to " + group.high.toFixed(2) + "</td></tr>";
+      }
+      document.getElementById("ciRows").innerHTML = rows;
+    }
+
+    function showCiResult() {
+      loadCi();
+      var text = "";
+      if (ciGroups[0].high < ciGroups[1].low) {
+        text = "The two intervals do not overlap, so " + ciNames[1] + " is likely different from " + ciNames[0] + ".";
+      } else {
+        text = "The two intervals overlap, so the difference between the groups is not clear yet.";
+      }
+      document.getElementById("ciResult").innerHTML = text;
+    }
+  </script>
+</body>
+</html>
